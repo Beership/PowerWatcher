@@ -151,6 +151,7 @@ class Settings:
     idle_notify_min: int = 0  # 0 = off; tray nudge after this many idle minutes
     region: str = ""  # province code (e.g. "SC" for 四川), empty = custom
     region_verified: bool = False  # True when user confirmed numbers match their bill
+    onboarded: bool = False  # False only on a brand-new install
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "Settings":
@@ -162,6 +163,9 @@ class Settings:
             idle_notify_min=max(0, _int(raw.get("idle_notify_min"), 0)),
             region=str(raw.get("region", "")),
             region_verified=bool(raw.get("region_verified", False)),
+            # Configs written before this field existed belong to users who
+            # already went through setup: never nag them with onboarding.
+            onboarded=bool(raw.get("onboarded", True)),
         )
 
     def to_dict(self) -> dict[str, Any]:

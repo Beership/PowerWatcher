@@ -186,6 +186,23 @@ def all_names() -> list[str]:
     return [r.name for r in REGIONS]
 
 
+def to_tariff(region: RegionTariff):
+    """Convert a region preset into a config.Tariff instance."""
+    from .config import Tariff, TariffPeriod
+
+    periods = [
+        TariffPeriod(name=p["name"], start=p["start"], end=p["end"], price=float(p["price"]))
+        for p in region.periods
+    ]
+    return Tariff(
+        mode=region.mode,
+        flat_price=region.flat_price,
+        periods=periods or Tariff().periods,
+        tier_enabled=bool(region.tiers),
+        tiers=list(region.tiers),
+    )
+
+
 # ---------------------------------------------------------- geo-location
 def detect_province_name(timeout: float = 4.0) -> tuple[str, str] | None:
     """Detect province from public IP via cip.cc (plain text, no JS).

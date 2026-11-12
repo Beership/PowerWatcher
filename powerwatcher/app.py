@@ -8,7 +8,7 @@ from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 
 from . import __version__, autostart
-from .config import load_settings
+from .config import load_settings, save_settings
 from .engine import Sampler
 from .paths import log_path
 from .rollup import rebuild_day
@@ -104,10 +104,6 @@ def main(argv: list[str] | None = None) -> int:
     sampler.ticked.connect(tray.on_tick)
     sampler.flushed.connect(lambda _day: tray.refresh())
 
-    if settings.autostart and not autostart.is_enabled():
-        if not autostart.set_enabled(True):
-            log.warning("could not register autostart")
-
     def shutdown() -> None:
         log.info("shutting down")
         sampler.stop()
@@ -118,7 +114,26 @@ def main(argv: list[str] | None = None) -> int:
     tray.quit_requested.connect(shutdown)
     app.aboutToQuit.connect(lambda: sampler.stop())
 
+    # Record from the first second; onboarding must not delay data collection.
     sampler.start()
+
+    # First run: ask about autostart and the regional tariff, once.
+    if not settings.onboarded:
+        if background:
+            # Started by the login entry, so setup already happened in effect.
+            settings.onboarded = True
+            save_settings(settings)
+        else:
+            from .ui.first_run import run_first_run
+
+            result = run_first_run(ctx, window)
+            if result is not None:
+                window.apply_settings(result)
+                settings = ctx.settings
+
+    if settings.autostart and not autostart.is_enabled():
+        if not autostart.set_enabled(True):
+            log.warning("could not register autostart")
 
     # Started by the login entry -> stay in the tray. Launched by hand -> show
     # the window, otherwise a double-click appears to do nothing.
